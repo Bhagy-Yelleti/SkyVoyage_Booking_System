@@ -1,5 +1,5 @@
-import { db } from "./db";
-import { airports, airlines, flights, seats } from "@shared/schema";
+import { db } from "./db.ts";
+import { airports, airlines, flights, seats } from "../shared/schema.ts";
 import { sql } from "drizzle-orm";
 
 const airportData = [
