@@ -1,0 +1,28 @@
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
+
+export const generateTicket = (booking: any) => {
+  const doc = new jsPDF();
+  
+  doc.setFontSize(20);
+  doc.text("FLIGHT E-TICKET", 105, 20, { align: "center" });
+
+  const tableData = [
+    ["Passenger", booking.passengerName],
+    ["Flight #", booking.flight.flightNumber],
+    ["From", booking.flight.originAirport.code],
+    ["To", booking.flight.destinationAirport.code],
+    ["Seat", booking.seatNumber],
+    ["Status", "CONFIRMED"]
+  ];
+
+  (doc as any).autoTable({
+    startY: 30,
+    head: [["Field", "Details"]],
+    body: tableData,
+    theme: 'grid',
+    headStyles: { fillColor: [30, 58, 138] } // Navy Blue
+  });
+
+  doc.save(`Ticket_${booking.id}.pdf`);
+};

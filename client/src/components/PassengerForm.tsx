@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Calendar } from "lucide-react";
+import { Calendar, CheckCircle2, UserCircle } from "lucide-react";
 import { format } from "date-fns";
 import {
   Form,
@@ -29,6 +30,7 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
+// 1. Schema for Validation
 const passengerSchema = z.object({
   title: z.enum(["Mr", "Mrs", "Ms", "Miss", "Dr"]),
   firstName: z.string().min(2, "First name is required"),
@@ -47,6 +49,8 @@ interface PassengerFormProps {
 }
 
 export function PassengerForm({ index, seatNumber, onSubmit, defaultValues }: PassengerFormProps) {
+  const [isSaved, setIsSaved] = useState(false);
+
   const form = useForm<PassengerFormData>({
     resolver: zodResolver(passengerSchema),
     defaultValues: {
@@ -58,13 +62,26 @@ export function PassengerForm({ index, seatNumber, onSubmit, defaultValues }: Pa
     },
   });
 
+  // Handle local submit and notify parent (Booking.tsx)
+  const handleLocalSubmit = (data: PassengerFormData) => {
+    onSubmit(data);
+    setIsSaved(true);
+  };
+
   return (
-    <Card className="overflow-visible">
+    <Card className={cn(
+      "overflow-visible transition-all duration-300 border-2", 
+      isSaved ? "border-green-500 bg-green-50/20" : "border-transparent"
+    )}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg flex items-center justify-between gap-4 flex-wrap">
-          <span>Passenger {index + 1}</span>
+        <CardTitle className="text-lg flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UserCircle className={cn("h-5 w-5", isSaved ? "text-green-500" : "text-primary")} />
+            <span>Passenger {index + 1}</span>
+            {isSaved && <CheckCircle2 className="h-5 w-5 text-green-500 animate-in zoom-in" />}
+          </div>
           {seatNumber && (
-            <span className="text-sm font-normal text-muted-foreground">
+            <span className="text-sm font-medium bg-primary/10 text-primary px-3 py-1 rounded-full">
               Seat: {seatNumber}
             </span>
           )}
@@ -72,8 +89,10 @@ export function PassengerForm({ index, seatNumber, onSubmit, defaultValues }: Pa
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleLocalSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* Title Selection */}
               <FormField
                 control={form.control}
                 name="title"
@@ -82,8 +101,8 @@ export function PassengerForm({ index, seatNumber, onSubmit, defaultValues }: Pa
                     <FormLabel>Title</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid={`select-title-${index}`}>
-                          <SelectValue placeholder="Select title" />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -99,6 +118,7 @@ export function PassengerForm({ index, seatNumber, onSubmit, defaultValues }: Pa
                 )}
               />
 
+              {/* First Name */}
               <FormField
                 control={form.control}
                 name="firstName"
@@ -106,17 +126,14 @@ export function PassengerForm({ index, seatNumber, onSubmit, defaultValues }: Pa
                   <FormItem>
                     <FormLabel>First Name</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="John"
-                        {...field}
-                        data-testid={`input-firstname-${index}`}
-                      />
+                      <Input placeholder="John" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
+              {/* Last Name */}
               <FormField
                 control={form.control}
                 name="lastName"
@@ -124,23 +141,20 @@ export function PassengerForm({ index, seatNumber, onSubmit, defaultValues }: Pa
                   <FormItem>
                     <FormLabel>Last Name</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Doe"
-                        {...field}
-                        data-testid={`input-lastname-${index}`}
-                      />
+                      <Input placeholder="Doe" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
+              {/* Date of Birth Picker */}
               <FormField
                 control={form.control}
                 name="dateOfBirth"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date of Birth</FormLabel>
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="mb-2">Date of Birth</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -150,7 +164,6 @@ export function PassengerForm({ index, seatNumber, onSubmit, defaultValues }: Pa
                               "w-full justify-start text-left font-normal",
                               !field.value && "text-muted-foreground"
                             )}
-                            data-testid={`button-dob-${index}`}
                           >
                             <Calendar className="mr-2 h-4 w-4" />
                             {field.value ? format(field.value, "PP") : "Pick a date"}
@@ -162,11 +175,8 @@ export function PassengerForm({ index, seatNumber, onSubmit, defaultValues }: Pa
                           mode="single"
                           selected={field.value}
                           onSelect={field.onChange}
-                          disabled={(date) => date > new Date()}
+                          disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                           initialFocus
-                          captionLayout="dropdown-buttons"
-                          fromYear={1920}
-                          toYear={new Date().getFullYear()}
                         />
                       </PopoverContent>
                     </Popover>
@@ -176,26 +186,28 @@ export function PassengerForm({ index, seatNumber, onSubmit, defaultValues }: Pa
               />
             </div>
 
+            {/* Passport Number */}
             <FormField
               control={form.control}
               name="passportNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Passport Number (Optional)</FormLabel>
+                  <FormLabel>Passport Number (Required for International)</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="AB1234567"
-                      {...field}
-                      data-testid={`input-passport-${index}`}
-                    />
+                    <Input placeholder="E.g. Z1234567" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <Button type="submit" className="w-full" data-testid={`button-save-passenger-${index}`}>
-              Save Passenger Details
+            {/* Submit Button inside the Card */}
+            <Button 
+              type="submit" 
+              variant={isSaved ? "outline" : "default"} 
+              className={cn("w-full transition-all", isSaved ? "border-green-500 text-green-600 hover:bg-green-50" : "")}
+            >
+              {isSaved ? "Details Saved Successfully" : "Confirm Passenger Details"}
             </Button>
           </form>
         </Form>

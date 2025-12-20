@@ -1,39 +1,22 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { serveStatic } from "./static";
+import router from "./routes"; // Changed to import the default router
+import { setupVite, serveStatic } from "./vite";
 import { createServer } from "http";
 import { seedDatabase } from "./seed";
 
+const log = (message: string) => {
+  const time = new Date().toLocaleTimeString();
+  console.log(`${time} [express] ${message}`);
+};
+
 const app = express();
-const httpServer = createServer(app);
-
-declare module "http" {
-  interface IncomingMessage {
-    rawBody: unknown;
-  }
-}
-
-app.use(
-  express.json({
-    verify: (req, _res, buf) => {
-      req.rawBody = buf;
-    },
-  }),
-);
-
+app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
+// Create the HTTP server first so Vite can attach to it
+const server = createServer(app);
 
-  console.log(`${formattedTime} [${source}] ${message}`);
-}
-
+// Request Logging Middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -52,7 +35,6 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       log(logLine);
     }
   });
@@ -61,35 +43,38 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Seed database with initial data
-  await seedDatabase();
-  
-  const server = await registerRoutes(app);
+  try {
+    // 1. Seed database with all combinations (BOM, DEL, BLR, JFK)
+    log("Initializing database seed...");
+    await seedDatabase();
+    log("Database seeding complete.");
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // 2. Register all API routes from routes.ts
+    app.use(router);
 
-    res.status(status).json({ message });
-    throw err;
-  });
+    // 3. Global Error Handling
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      res.status(status).json({ message });
+      console.error(err);
+    });
 
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(server, app);
+    // 4. Setup Vite for Dev or Serve Static for Production
+    if (process.env.NODE_ENV === "production") {
+      serveStatic(app);
+    } else {
+      await setupVite(app, server);
+    }
+
+    // 5. Start Listening
+    const PORT = 5000;
+    server.listen(PORT, "0.0.0.0", () => {
+      log(`Server running at http://0.0.0.0:${PORT}`);
+    });
+
+  } catch (error) {
+    console.error("Critical: Failed to start server:", error);
+    process.exit(1);
   }
-
-  const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(
-    {
-      port,
-     host: "127.0.0.1",
-   
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
 })();
