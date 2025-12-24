@@ -4,33 +4,34 @@ import autoTable from "jspdf-autotable";
 export const generateTicketPDF = (booking: any) => {
   const doc = new jsPDF();
   
-  // Header
-  doc.setFillColor(30, 58, 138); // Blue
+  // Header Design
+  doc.setFillColor(15, 23, 42); // Dark Slate
   doc.rect(0, 0, 210, 40, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
-  doc.text("SKYVOYAGE E-TICKET", 105, 25, { align: "center" });
+  doc.text("SKYVOYAGE BOARDING PASS", 105, 25, { align: "center" });
 
-  // Booking Info
+  // Reset text for body
   doc.setTextColor(0, 0, 0);
-  doc.setFontSize(12);
-  doc.text(`Booking ID: #BK-${booking.id}`, 14, 50);
-  doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 58);
+  doc.setFontSize(10);
+  doc.text(`PNR: ${booking.pnr || "GUEST"}`, 14, 50);
+  doc.text(`DATE: ${new Date().toLocaleDateString()}`, 14, 55);
 
   autoTable(doc, {
-    startY: 70,
-    head: [['Flight Details', 'Information']],
+    startY: 65,
+    head: [['Passenger Info', 'Flight Details']],
     body: [
-      ['Passenger Name', booking.passengerName],
-      ['Airline', booking.flight.airline.name],
-      ['Flight Number', booking.flight.flightNumber],
-      ['Route', `${booking.flight.originAirport.city} (${booking.flight.originAirport.code}) to ${booking.flight.destinationAirport.city} (${booking.flight.destinationAirport.code})`],
-      ['Seat Number', booking.seatNumber],
-      ['Status', booking.status.toUpperCase()],
+      ['Name', booking.passengerName],
+      ['Airline', booking.flight?.airline?.name || "N/A"],
+      ['Flight No', booking.flight?.flightNumber || "N/A"],
+      ['From', `${booking.flight?.originAirport?.city || "N/A"} (${booking.flight?.originAirport?.code || ""})`],
+      ['To', `${booking.flight?.destinationAirport?.city || "N/A"} (${booking.flight?.destinationAirport?.code || ""})`],
+      ['Seat', booking.seatNumber],
+      ['Status', 'CONFIRMED'],
     ],
-    theme: 'striped',
-    headStyles: { fillColor: [30, 58, 138] }
+    theme: 'grid',
+    headStyles: { fillColor: [15, 23, 42] }
   });
 
-  doc.save(`SkyVoyage_Ticket_${booking.id}.pdf`);
+  doc.save(`Ticket_SkyVoyage_${booking.pnr || booking.id}.pdf`);
 };

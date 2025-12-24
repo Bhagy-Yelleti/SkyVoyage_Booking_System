@@ -1,51 +1,72 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
-import { FlightCard } from "@/components/FlightCard"; 
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { generateTicketPDF } from "@/lib/pdf-gen";
+import { FlightCard } from "@/components/FlightCard";
+import { useLocation } from "wouter";
 
 export default function Search() {
-  const { toast } = useToast();
-  const searchParams = new URLSearchParams(window.location.search);
-  const origin = searchParams.get("origin") || "";
-  const destination = searchParams.get("destination") || "";
-  const date = searchParams.get("date") || "";
+  const [location, setLocation] = useLocation();
 
-  const { data: flights, isLoading } = useQuery<any[]>({
-    queryKey: [`/api/flights/search/${origin}/${destination}/${date}`],
+  // Read query params. wouter's `location` may not include the search string,
+  // so prefer the real `window.location.search` on the client when available.
+  const searchString = (() => {
+    if (typeof window !== "undefined" && window.location && window.location.search) {
+      return window.location.search;
+    }
+    // fallback to wouter location if it happens to include the query
+    return location.includes("?") ? `?${location.split("?")[1]}` : "";
+  })();
+
+  const params = new URLSearchParams(searchString);
+  const origin = params.get("origin");
+  const destination = params.get("destination");
+
+  console.log("Search page - location:", location);
+  console.log("Search page - origin:", origin, "destination:", destination);
+
+  const { data: flights = [], isLoading, error } = useQuery({
+    queryKey: ["flights", origin, destination],
+    queryFn: async () => {
+      const url = `/api/flights/search?origin=${origin}&destination=${destination}`;
+      console.log("Fetching flights from:", url);
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Search failed: ${res.status} ${res.statusText}`);
+      }
+      const data = await res.json();
+      console.log("Flights fetched:", data, "count:", data.length);
+      return data;
+    },
     enabled: !!origin && !!destination,
   });
 
-  const bookingMutation = useMutation({
-    mutationFn: async (flightId: any) => {
-      const res = await apiRequest("POST", "/api/bookings", { flightId });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      toast({ title: "Booking Confirmed!", description: "Your ticket is downloading..." });
-      generateTicketPDF(data); // AUTOMATIC PDF GENERATION
-    },
-    onError: () => {
-      toast({ variant: "destructive", title: "Error", description: "Booking failed." });
-    }
-  });
+  // When selecting a flight, navigate to the booking flow with query params
 
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
+
       <main className="pt-32 px-6 max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Available Flights</h1>
-        {isLoading ? <p>Searching flights...</p> : 
-         flights?.length === 0 ? <p>No flights found for this route.</p> :
-         flights?.map((f) => (
-           <FlightCard 
-             key={f.id} 
-             flight={f} 
-             onSelect={(id: any) => bookingMutation.mutate(id)} 
-           />
-         ))}
+
+        {isLoading && <p>Loading flights...</p>}
+
+        {error && (
+          <p className="text-red-500 font-semibold">Error: {(error as Error).message}</p>
+        )}
+
+        {!isLoading && flights.length === 0 && !error && (
+          <p className="text-slate-400">No flights found.</p>
+        )}
+
+        {flights.map((flight: any) => (
+          <FlightCard
+            key={flight.id}
+            flight={flight}
+            onSelect={() => setLocation(`/booking?flightId=${flight.id}&passengers=1&class=economy`)}
+          />
+        ))}
       </main>
     </div>
   );
 }
+ 
