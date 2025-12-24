@@ -85,7 +85,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get base price
-      const basePrice = flight.economyPrice || flight.basePrice || "5500";
+      const basePrice = flight.economyPrice || "5000";
       let finalPrice = parseFloat(basePrice);
       let surgePriceApplied = false;
 

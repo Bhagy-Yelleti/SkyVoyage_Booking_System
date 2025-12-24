@@ -89,18 +89,21 @@ export function Header({ transparent = false }: HeaderProps) {
           </nav>
 
           <div className="flex items-center gap-4">
-            {/* WALLET DISPLAY - Added this section */}
-            <div 
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full font-medium border",
-                isTransparent 
-                  ? "bg-white/10 text-white border-white/20" 
-                  : "bg-primary/10 text-primary border-primary/20"
-              )}
-            >
-              <Wallet className="h-4 w-4" />
-              <span>₹{user?.walletBalance?.toLocaleString() ?? "50,000"}</span>
-            </div>
+            {/* WALLET DISPLAY - show only when user data present to avoid confusing fallback */}
+            {typeof user?.walletBalance === "number" && (
+              <div
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-full font-medium border",
+                  isTransparent
+                    ? "bg-white/10 text-white border-white/20"
+                    : "bg-primary/10 text-primary border-primary/20"
+                )}
+                aria-label="wallet-balance"
+              >
+                <Wallet className="h-4 w-4" />
+                <span>₹{user.walletBalance.toLocaleString()}</span>
+              </div>
+            )}
 
             <ThemeToggle />
 
