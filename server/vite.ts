@@ -4,12 +4,14 @@ import { type Server } from "http";
 import viteConfig from "../vite.config";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { nanoid } from "nanoid";
-import express from "express"; // Added for serveStatic
+import express from "express";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const viteLogger = createLogger();
 
-// 1. Swap (server, app) to (app, server) to match your index.ts call
+// Setup Vite middleware for development SSR
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
@@ -25,7 +27,6 @@ export async function setupVite(app: Express, server: Server) {
       error: (msg, options) => {
         viteLogger.error(msg, options);
         // Don't exit on errors - let the server keep running
-        // process.exit(1);
       },
     },
     server: serverOptions,
@@ -39,7 +40,7 @@ export async function setupVite(app: Express, server: Server) {
 
     try {
       const clientTemplate = path.resolve(
-        import.meta.dirname,
+        __dirname,
         "..",
         "client",
         "index.html",
@@ -59,9 +60,9 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
-// 2. Added missing serveStatic export
+// Serve static files in production
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+  const distPath = path.resolve(__dirname, "..", "dist", "public");
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find build directory: ${distPath}. Run 'npm run build' first.`,
